@@ -4,6 +4,7 @@ import time
 import sys
 import keyboard as kb
 import win32clipboard as wcb  # requere: pywin32==255
+import win32con
 import easygui
 import re
 
@@ -15,27 +16,46 @@ def string_process(x):
     x = re.sub('\n', ' ', x)
     while '  ' in x:
         x = re.sub('  ', ' ', x)
+    x = re.sub(' - ', '', x)
+    x = re.sub('- ', '', x)
     x = re.sub(' -', '', x)
     return x
 
 
-def clipboard_process():
-    wcb.OpenClipboard()
-    data = wcb.GetClipboardData()
-    data = string_process(data)
-    # print(data)
-    wcb.EmptyClipboard()
-    wcb.SetClipboardText(data)
-    wcb.CloseClipboard()
+class CP:
+    data_cache = ''
+
+    def clipboard_process():
+        try:
+            wcb.OpenClipboard()
+            data = wcb.GetClipboardData()
+            CP.data_cache = data
+            data = string_process(data)
+            wcb.EmptyClipboard()
+            wcb.SetClipboardText(data, win32con.CF_UNICODETEXT)
+            wcb.CloseClipboard()
+            time.sleep(1)  # avoid open clipboard again to cause error
+        except Exception as e:
+            print(e)
+            try:  # try copy without reformatting
+                wcb.OpenClipboard()
+                wcb.EmptyClipboard()
+                wcb.SetClipboardText(CP.data_cache, win32con.CF_UNICODETEXT)
+                CP.data_cache = ''
+                wcb.CloseClipboard()
+                time.sleep(1)  # avoid open clipboard again to cause error wcb.CloseClipboard()
+            except:
+                pass
 
 
 def action():
     if kb.is_pressed('ctrl+w'):  # costomized hotkey
         kb.send('ctrl+c')
-        clipboard_process()
+        CP.clipboard_process()
         kb.send('ctrl+v')
+        time.sleep(1)
     elif kb.is_pressed('ctrl+c') or kb.is_pressed('ctrl+x'):
-        clipboard_process()
+        CP.clipboard_process()
     elif kb.is_pressed('ctrl+e'):
         show_info()
     elif kb.is_pressed('ctrl+q'):
